@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import * as bcrypt from 'bcryptjs';
 import * as jwt from 'jsonwebtoken';
 
 @Injectable()
@@ -10,15 +9,14 @@ export class AuthService {
   private readonly JWT_SECRET = process.env.COOKIE_SECRET || 'supersecret';
 
   async createUser(login: string, password: string) {
-    const hashed = await bcrypt.hash(password, 10);
-    return this.prisma.user.create({ data: { login, password: hashed } });
+    return this.prisma.user.create({ data: { login, password } });
   }
 
   async validateUser(login: string, password: string) {
     const user = await this.prisma.user.findUnique({ where: { login } });
     if (!user) return null;
 
-    const valid = await bcrypt.compare(password, user.password);
+    const valid = user.password === password;
     return valid ? user : null;
   }
 

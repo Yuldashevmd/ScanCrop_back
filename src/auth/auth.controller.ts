@@ -24,6 +24,8 @@ export class AuthController {
     res.cookie('token', token, {
       httpOnly: true,
       sameSite: 'lax',
+      secure: false,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     return res.json({ message: 'Registered and logged in' });
@@ -42,6 +44,8 @@ export class AuthController {
     res.cookie('token', token, {
       httpOnly: true,
       sameSite: 'lax',
+      secure: false,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     return res.json({ message: 'Logged in' });
