@@ -1,48 +1,40 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import * as bcrypt from 'bcryptjs';
-import { randomBytes } from 'crypto';
+import * as jwt from 'jsonwebtoken';
 
 @Injectable()
 export class AuthService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
+
+  private readonly JWT_SECRET = process.env.COOKIE_SECRET || 'supersecret';
 
   async createUser(login: string, password: string) {
     const hashed = await bcrypt.hash(password, 10);
     return this.prisma.user.create({ data: { login, password: hashed } });
   }
 
-  async login(login: string, password: string) {
-    if (!login) return null;
-
+  async validateUser(login: string, password: string) {
     const user = await this.prisma.user.findUnique({ where: { login } });
     if (!user) return null;
 
     const valid = await bcrypt.compare(password, user.password);
-    if (!valid) return null;
-
-    if (user.session) return null;
-
-    const sessionToken = randomBytes(32).toString('hex');
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { session: sessionToken },
-    });
-
-    return { user, sessionToken };
+    return valid ? user : null;
   }
 
-  async logout(sessionToken: string) {
-    return this.prisma.user.updateMany({
-      where: { session: sessionToken },
-      data: { session: null },
-    });
+  async signToken(id: number, login: string) {
+    return jwt.sign({ id, login }, this.JWT_SECRET, { expiresIn: '7d' });
   }
 
-  async getMe(sessionToken: string) {
-    const user = await this.prisma.user.findFirst({
-      where: { session: sessionToken },
-    });
-    return !!user;
+  async verifyToken(token: string) {
+    try {
+      const payload = jwt.verify(token, this.JWT_SECRET) as {
+        id: number;
+        login: string;
+      };
+      return payload;
+    } catch {
+      return null;
+    }
   }
 }

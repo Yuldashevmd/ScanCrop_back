@@ -1,53 +1,65 @@
-import { Controller, Post, Body, Req, Res, Get } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Res,
+  Req,
+  Get,
+  HttpCode,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import type { Request, Response } from 'express';
+import { CreateUserDto } from './dto/create-user.dto';
+import { LoginUserDto } from './dto/login-user.dto';
 
 @Controller()
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(private readonly authService: AuthService) {}
 
-  @Post('createUser')
-  async createUser(@Body() body: { login: string; password: string }) {
-    return this.authService.createUser(body.login, body.password);
+  @Post('register')
+  async register(@Body() body: CreateUserDto, @Res() res: Response) {
+    console.log(body, 'body');
+    const user = await this.authService.createUser(body.login, body.password);
+    const token = await this.authService.signToken(user.id, user.login);
+
+    res.cookie('token', token, {
+      httpOnly: true,
+      sameSite: 'lax',
+    });
+
+    return res.json({ message: 'Registered and logged in' });
   }
 
   @Post('login')
-  async login(
-    @Body() body: { login: string; password: string },
-    @Res() res: Response,
-  ) {
-    const { login, password } = body;
-
-    if (!login || !password) {
-      return res
-        .status(400)
-        .json({ message: 'Login and password are required' });
+  @HttpCode(200)
+  async login(@Body() body: LoginUserDto, @Res() res: Response) {
+    const user = await this.authService.validateUser(body.login, body.password);
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    const result = await this.authService.login(login, password);
-    if (!result)
-      return res
-        .status(401)
-        .json({ message: 'Invalid credentials or already logged in' });
+    const token = await this.authService.signToken(user.id, user.login);
 
-    res.cookie('session', result.sessionToken, { httpOnly: true });
+    res.cookie('token', token, {
+      httpOnly: true,
+      sameSite: 'lax',
+    });
+
     return res.json({ message: 'Logged in' });
   }
 
   @Post('logout')
-  async logout(@Req() req: Request, @Res() res: Response) {
-    const sessionToken = req.cookies['session'] as string | undefined;
-    if (sessionToken) await this.authService.logout(sessionToken);
-    res.clearCookie('session');
+  async logout(@Res() res: Response) {
+    res.clearCookie('token');
     return res.json({ message: 'Logged out' });
   }
 
   @Get('me')
   async getMe(@Req() req: Request) {
-    const sessionToken = req.cookies['session'] as string | undefined;
-    const isAuth = sessionToken
-      ? await this.authService.getMe(sessionToken)
-      : false;
-    return { isAuth };
+    const token = req.cookies['token'];
+    if (!token) return { isAuth: false };
+
+    const user = await this.authService.verifyToken(token);
+    return { isAuth: !!user, user };
   }
 }
