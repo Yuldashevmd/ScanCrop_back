@@ -18,7 +18,6 @@ export class AuthController {
 
   @Post('register')
   async register(@Body() body: CreateUserDto, @Res() res: Response) {
-    console.log(body, 'body');
     const user = await this.authService.createUser(body.login, body.password);
     const token = await this.authService.signToken(user.id, user.login);
 
