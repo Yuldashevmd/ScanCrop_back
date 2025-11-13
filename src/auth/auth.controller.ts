@@ -16,18 +16,23 @@ import { LoginUserDto } from './dto/login-user.dto';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  // Cookie configuration
+  private getCookieOptions() {
+    const isProd = process.env.NODE_ENV === 'production';
+    return {
+      httpOnly: true,
+      sameSite: isProd ? 'none' : 'lax',
+      secure: isProd,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    } as const;
+  }
+
   @Post('register')
   async register(@Body() body: CreateUserDto, @Res() res: Response) {
     const user = await this.authService.createUser(body.login, body.password);
     const token = await this.authService.signToken(user.id, user.login);
 
-    res.cookie('token', token, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: false,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
+    res.cookie('token', token, this.getCookieOptions());
     return res.json({ message: 'Registered and logged in' });
   }
 
@@ -40,20 +45,13 @@ export class AuthController {
     }
 
     const token = await this.authService.signToken(user.id, user.login);
-
-    res.cookie('token', token, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: false,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
+    res.cookie('token', token, this.getCookieOptions());
     return res.json({ message: 'Logged in' });
   }
 
   @Post('logout')
   async logout(@Res() res: Response) {
-    res.clearCookie('token');
+    res.clearCookie('token', this.getCookieOptions());
     return res.json({ message: 'Logged out' });
   }
 
