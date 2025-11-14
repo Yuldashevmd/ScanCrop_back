@@ -35,4 +35,11 @@ export class AuthService {
       return null;
     }
   }
+  async getUsers() {
+    return this.prisma.user.findMany();
+  }
+
+  async deleteUser(id: number) {
+    return this.prisma.user.delete({ where: { id } });
+  }
 }

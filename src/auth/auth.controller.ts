@@ -6,6 +6,8 @@ import {
   Req,
   Get,
   HttpCode,
+  Delete,
+  Param,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import type { Request, Response } from 'express';
@@ -62,5 +64,15 @@ export class AuthController {
 
     const user = await this.authService.verifyToken(token);
     return { isAuth: !!user, user };
+  }
+
+  @Get('users')
+  async getUsers() {
+    return this.authService.getUsers();
+  }
+
+  @Delete(':id')
+  async deleteUser(@Param('id') id: string) {
+    return this.authService.deleteUser(Number(id));
   }
 }
